@@ -11,6 +11,7 @@
 #import "NBZProviders.h"
 #import "NBZScrobble.h"
 #import "NBZSettingsVC.h"
+#import "NBZSideload.h"
 #import "NBZUtil.h"
 
 static IMP nbz_orig_avatarLayout;
@@ -201,6 +202,7 @@ static void NBZInstallHooks(void) {
 __attribute__((constructor)) static void NBZNibblezInit(void) {
     @autoreleasepool {
         NBZLog(@"Nibblez %@ loading", @NIBBLEZ_VERSION);
+        NBZInstallSideloadFixes();  // before the app's sign-in code reads the keychain
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             NBZInstallHooks();
             [[NBZScrobbler shared] start];
