@@ -61,3 +61,4 @@ This project is mostly AI generated with human direction, testing and review. Ir
 - [YTM-AI-Artist-Song-Blocker](https://github.com/firemountainpeak-lang/YTM-AI-Artist-Song-Blocker), which the blocking idea comes from
 - [YTMusicUltimate](https://github.com/dayanch96/YTMusicUltimate) and [YTMEnhanced](https://github.com/py233/YTMEnhanced), used as references for hooking the app
 - [Theos](https://theos.dev)
+- [Web Scrobbler](https://github.com/web-scrobbler/web-scrobbler) for the webhook format and inspiration for the scrobbling code
