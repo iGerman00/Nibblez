@@ -40,8 +40,10 @@ extern NSString *const NBZKeyScrobbleQueue;
 @property (nonatomic, copy) NSString *album;
 @property (nonatomic, copy, nullable) NSString *videoID;
 @property (nonatomic) NSTimeInterval duration;
-@property (nonatomic) NSTimeInterval played;
+@property (nonatomic) NSTimeInterval played;    // seconds actually listened
+@property (nonatomic) NSTimeInterval position;  // playback position, from the app
 @property (nonatomic) NSTimeInterval startedAt;
+@property (nonatomic) BOOL fromQueue;  // a retry of an earlier scrobble, not live playback
 
 - (BOOL)meetsScrobbleThreshold;
 - (NSDictionary *)dictionaryRepresentation;
@@ -56,6 +58,9 @@ extern NSString *const NBZKeyScrobbleQueue;
 - (void)submitNowPlaying:(NBZTrack *)track;
 - (void)scrobble:(NBZTrack *)track completion:(void (^)(BOOL ok, NSString *_Nullable error))completion;
 - (void)testConnection:(void (^)(BOOL ok, NSString *_Nullable message))completion;
+@optional
+// Pause/resume of the current track. Only the webhook (Web Scrobbler format) uses it.
+- (void)submitPlaybackState:(NBZTrack *)track playing:(BOOL)playing;
 @end
 
 @interface NBZLastFMProvider : NSObject <NBZScrobbleProvider>

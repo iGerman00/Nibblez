@@ -133,6 +133,17 @@ static NSInteger gNBZSuppressedToasts;
     return NBZIvar([self player], "_playbackPublishController");
 }
 
+// The player's own playback position in seconds (what the mini player shows),
+// or -1 when it can't be read. The position in the now-playing info is only
+// refreshed on state changes, so it goes stale while playing.
+- (NSTimeInterval)playbackPosition {
+    id publish = [self publishController];
+    SEL sel = NSSelectorFromString(@"currentPlaybackVideoMediaTime");
+    if (![publish respondsToSelector:sel]) return -1;
+    double position = ((double (*)(id, SEL))objc_msgSend)(publish, sel);
+    return position >= 0 ? position : -1;
+}
+
 - (nullable NSString *)currentVideoID {
     id videoID = NBZCall([self publishController], @"currentVideoID");
     return [videoID isKindOfClass:[NSString class]] && [videoID length] ? videoID : nil;

@@ -115,6 +115,7 @@ static void NBZSend(NSURLRequest *req, void (^completion)(BOOL ok, NSString *mes
     t.duration = [d[@"duration"] doubleValue];
     t.played = [d[@"played"] doubleValue];
     t.startedAt = [d[@"startedAt"] doubleValue];
+    t.fromQueue = YES;
     return t;
 }
 
@@ -409,29 +410,98 @@ static void NBZSend(NSURLRequest *req, void (^completion)(BOOL ok, NSString *mes
     NBZSend(NBZPost(urlString, headers, body), completion);
 }
 
+// The body Web Scrobbler's own webhook sends, so receivers that speak it
+// (multi-scrobbler's /api/webscrobbler, for one) accept it unchanged.
+- (NSDictionary *)payloadForEvent:(NSString *)event track:(NBZTrack *)track playing:(BOOL)playing scrobbled:(BOOL)scrobbled {
+    static NSString *const kLabel = @"YouTube Music";
+    NSString *rawTitle = track.rawTitle.length ? track.rawTitle : track.title;
+    NSString *rawArtist = track.rawArtist.length ? track.rawArtist : track.artist;
+
+    NSMutableDictionary *processed = [NSMutableDictionary dictionary];
+    processed[@"track"] = track.title ?: @"";
+    processed[@"artist"] = track.artist ?: @"";
+    if (track.album.length) processed[@"album"] = track.album;
+    if (track.duration > 0) processed[@"duration"] = @((long)track.duration);
+
+    NSMutableDictionary *parsed = [processed mutableCopy];
+    parsed[@"track"] = rawTitle ?: @"";
+    parsed[@"artist"] = rawArtist ?: @"";
+    if (track.videoID.length) {
+        parsed[@"uniqueID"] = track.videoID;
+        parsed[@"originUrl"] = [@"https://music.youtube.com/watch?v=" stringByAppendingString:track.videoID];
+    }
+    parsed[@"isPodcast"] = @NO;
+    parsed[@"isPlaying"] = @(playing);
+    parsed[@"currentTime"] = @((long)(track.position > 0 ? track.position : track.played));
+    parsed[@"isScrobblingAllowed"] = @YES;
+    parsed[@"albumArtist"] = [NSNull null];
+    parsed[@"scrobblingDisallowedReason"] = [NSNull null];
+
+    long start = (long)track.startedAt;
+    if (start <= 0) start = (long)[NSDate date].timeIntervalSince1970;
+
+    NSDictionary *song = @{
+        @"controllerTabId": @"nibblez",
+        @"connector": @{@"label": kLabel, @"matches": @[@"*://music.youtube.com/*"], @"js": @"youtube-music.js", @"id": @"youtube-music"},
+        @"parsed": parsed,
+        @"processed": processed,
+        @"noRegex": processed,
+        @"flags": @{
+            @"isScrobbled": @(scrobbled),
+            @"isCorrectedByUser": @NO,
+            @"isRegexEditedByUser": @{@"track": @NO, @"artist": @NO, @"album": @NO, @"albumArtist": @NO},
+            @"isAlbumFetched": @NO,
+            @"isValid": @YES,
+            @"isMarkedAsPlaying": @(playing),
+            @"isSkipped": @NO,
+            @"isReplaying": @NO,
+            @"hasBlockedTag": @NO,
+            @"isLovedInService": [NSNull null],
+            @"finishedProcessing": @YES,
+        },
+        @"metadata": @{@"label": kLabel, @"startTimestamp": @(start)},
+        @"connectorLabel": kLabel,
+    };
+    // As Web Scrobbler: only the scrobble event carries songs and currentlyPlaying,
+    // and isScrobbled is still false in it.
+    BOOL isScrobble = [event isEqualToString:@"scrobble"];
+    return @{
+        @"eventName": event,
+        @"time": @((long)[NSDate date].timeIntervalSince1970),
+        @"data": isScrobble ? @{@"song": song, @"songs": @[song], @"currentlyPlaying": @(playing)} : @{@"song": song},
+    };
+}
+
 - (void)submitNowPlaying:(NBZTrack *)track {
     if (!self.isConfigured) return;
-    NSMutableDictionary *p = [track.dictionaryRepresentation mutableCopy];
-    p[@"event"] = @"nowplaying";
-    p[@"client"] = @"Nibblez/0.1.0";
-    [self post:p completion:^(BOOL ok, NSString *message) {
+    [self post:[self payloadForEvent:@"nowplaying" track:track playing:YES scrobbled:NO] completion:^(BOOL ok, NSString *message) {
         if (!ok) NBZLog(@"webhook now-playing failed: %@", message);
+    }];
+}
+
+- (void)submitPlaybackState:(NBZTrack *)track playing:(BOOL)playing {
+    if (!self.isConfigured) return;
+    [self post:[self payloadForEvent:playing ? @"resumedplaying" : @"paused" track:track playing:playing scrobbled:NO]
+    completion:^(BOOL ok, NSString *message) {
+        if (!ok) NBZLog(@"webhook playback state failed: %@", message);
     }];
 }
 
 - (void)scrobble:(NBZTrack *)track completion:(void (^)(BOOL, NSString *))completion {
     if (!self.isConfigured) { completion(NO, @"Webhook not configured"); return; }
-    NSMutableDictionary *p = [track.dictionaryRepresentation mutableCopy];
-    p[@"event"] = @"scrobble";
-    p[@"timestamp"] = @((long)track.startedAt);
-    p[@"client"] = @"Nibblez/0.1.0";
-    [self post:p completion:completion];
+    [self post:[self payloadForEvent:@"scrobble" track:track playing:!track.fromQueue scrobbled:NO] completion:completion];
 }
 
+// There is no neutral event in the format, so this sends a track under an event
+// name receivers don't act on.
 - (void)testConnection:(void (^)(BOOL, NSString *))completion {
-    NSMutableDictionary *p = [@{@"event": @"ping", @"client": @"Nibblez/0.1.0"} mutableCopy];
-    [self post:p completion:^(BOOL ok, NSString *message) {
-        completion(ok, ok ? @"Webhook accepted the ping" : message);
+    NBZTrack *track = [NBZTrack new];
+    track.title = @"Connection test";
+    track.artist = @"Nibblez";
+    track.duration = 60;
+    track.startedAt = [NSDate date].timeIntervalSince1970;
+    [self post:[self payloadForEvent:@"ping" track:track playing:NO scrobbled:NO] completion:^(BOOL ok, NSString *message) {
+        completion(ok, ok ? @"Webhook accepted the test" : message);
     }];
 }
 

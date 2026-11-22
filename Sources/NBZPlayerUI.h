@@ -22,6 +22,9 @@ NS_ASSUME_NONNULL_BEGIN
 // belongs to the previous video (mid-transition). Main thread only.
 - (nullable NBZNowPlaying *)nowPlaying;
 
+// Playback position in seconds from the app's player, -1 if unavailable.
+- (NSTimeInterval)playbackPosition;
+
 // User action (action-row pill): block the artist, optionally dislike the
 // exact video, then make sure that video stops playing.
 - (void)blockNowPlaying;

@@ -107,13 +107,18 @@ static BOOL NBZIsPermanentFailure(NSString *error) {
     NBZNowPlaying *snapshot = [[NBZPlayerUI shared] nowPlaying];
     NSString *videoID = [snapshot.title isEqualToString:title] ? snapshot.videoID : nil;
 
+    // The player's own position; the now-playing info's elapsed time is stale
+    // between state changes.
+    double position = [[NBZPlayerUI shared] playbackPosition];
+    if (position < 0 || !videoID.length) position = elapsed;
+
     NBZTrack *track = self.currentTrack;
     BOOL changed = !track || ![track.rawTitle isEqualToString:title] || ![track.rawArtist isEqualToString:artist]
         || (videoID.length && track.videoID.length && ![track.videoID isEqualToString:videoID]);
     // Same song again (repeat, or replayed from the start) after it counted:
     // elapsed jumped back to the beginning.
-    BOOL replayed = !changed && track.meetsScrobbleThreshold && self.lastElapsed - elapsed > 10 && elapsed < 10;
-    self.lastElapsed = elapsed;
+    BOOL replayed = !changed && track.meetsScrobbleThreshold && self.lastElapsed - position > 10 && position < 10;
+    self.lastElapsed = position;
 
     if (changed || replayed) {
         [self finalizeCurrentTrack];
@@ -125,7 +130,7 @@ static BOOL NBZIsPermanentFailure(NSString *error) {
         track.album = NBZCleanAlbum(album);
         track.duration = duration;
         track.videoID = videoID;
-        track.startedAt = (elapsed > 2) ? now - elapsed : now;
+        track.startedAt = (position > 2) ? now - position : now;
         track.played = 0;
         self.currentTrack = track;
         self.scrobbledCurrent = NO;
@@ -136,17 +141,30 @@ static BOOL NBZIsPermanentFailure(NSString *error) {
     if (!track.videoID.length && videoID.length) track.videoID = videoID;
 
     if (duration > 0) track.duration = duration;
+    track.position = position;
     if (rate > 0) {
         // Coming back from a long pause: services drop "now playing" after a while.
         if (self.pausedAt > 0 && now - self.pausedAt >= kResumeResendAfter) self.nowPlayingSent = NO;
+        if (self.pausedAt > 0 && self.nowPlayingSent && [self.activeProvider respondsToSelector:@selector(submitPlaybackState:playing:)]) {
+            [self.activeProvider submitPlaybackState:track playing:YES];
+        }
         self.pausedAt = 0;
         track.played += delta;
+        // Scrobble as soon as the threshold is reached, while it is still playing,
+        // not when the track ends. Otherwise a killed app loses it.
+        if (!self.scrobbledCurrent && track.meetsScrobbleThreshold && self.activeProvider.isConfigured) {
+            self.scrobbledCurrent = YES;
+            [self submit:track];
+        }
         if (!self.nowPlayingSent && track.played >= kNowPlayingDelay) {
             self.nowPlayingSent = YES;
             if (self.activeProvider.isConfigured) [self.activeProvider submitNowPlaying:track];
         }
     } else if (self.pausedAt == 0) {
         self.pausedAt = now;
+        if (self.nowPlayingSent && [self.activeProvider respondsToSelector:@selector(submitPlaybackState:playing:)]) {
+            [self.activeProvider submitPlaybackState:track playing:NO];
+        }
     }
 }
 
@@ -155,17 +173,8 @@ static BOOL NBZIsPermanentFailure(NSString *error) {
     if (!track) return;
     self.currentTrack = nil;
     if (!NBZBool(NBZKeyScrobbleEnabled, YES)) return;
-    if (!track.meetsScrobbleThreshold) {
-        NBZLog(@"skip scrobble %@ - %@ (played %.0fs of %.0fs)", track.artist, track.title, track.played, track.duration);
-        return;
-    }
-    if (!self.activeProvider.isConfigured) {
-        NBZLog(@"scrobble dropped: %@ not configured", [self.activeProvider displayName]);
-        return;
-    }
-    if (self.scrobbledCurrent) return;
-    self.scrobbledCurrent = YES;
-    [self submit:track];
+    if (self.scrobbledCurrent) return;  // already sent at the threshold
+    NBZLog(@"skip scrobble %@ - %@ (played %.0fs of %.0fs)", track.artist, track.title, track.played, track.duration);
 }
 
 - (void)submit:(NBZTrack *)track {
