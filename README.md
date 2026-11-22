@@ -1,5 +1,11 @@
 # Nibblez
 
+<p align="center">
+  <img width="32%" alt="nibblez0" src="https://github.com/user-attachments/assets/7a15a6aa-1f40-46a3-9a24-56e914861bae" />
+  <img width="32%" alt="nibblez1" src="https://github.com/user-attachments/assets/012e746f-0f5a-4bbb-afb6-eb38bc215606" />
+  <img width="32%" alt="nibblez2" src="https://github.com/user-attachments/assets/55761900-ed4e-4603-be21-582305375c3c" />
+</p>
+
 A tweak for the YouTube Music iOS app. It scrobbles, blocks artists, and adds like/dislike controls to the lock screen and Control Center
 
 ## Features
