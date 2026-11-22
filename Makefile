@@ -8,7 +8,7 @@ endif
 
 TWEAK_NAME = Nibblez
 Nibblez_FILES = $(wildcard Sources/*.m)
-Nibblez_CFLAGS = -fobjc-arc -Wno-deprecated-declarations -DNIBBLEZ_VERSION=\"0.1.2\"
+Nibblez_CFLAGS = -fobjc-arc -Wno-deprecated-declarations -DNIBBLEZ_VERSION=\"0.1.3\"
 Nibblez_FRAMEWORKS = UIKit Foundation MediaPlayer UniformTypeIdentifiers
 Nibblez_LIBRARIES = z
 Nibblez_CFLAGS += -I$(THEOS_PROJECT_DIR)/Sources
