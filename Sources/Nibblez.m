@@ -200,7 +200,7 @@ static void NBZInstallHooks(void) {
 
 __attribute__((constructor)) static void NBZNibblezInit(void) {
     @autoreleasepool {
-        NBZLog(@"Nibblez %@ loading", @"0.1.0");
+        NBZLog(@"Nibblez %@ loading", @NIBBLEZ_VERSION);
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             NBZInstallHooks();
             [[NBZScrobbler shared] start];

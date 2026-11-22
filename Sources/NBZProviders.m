@@ -47,7 +47,7 @@ static NSURLRequest *NBZPost(NSString *urlString, NSDictionary *headers, NSData 
     NSMutableURLRequest *req = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:urlString]];
     req.HTTPMethod = @"POST";
     req.timeoutInterval = 20;
-    [req setValue:@"Nibblez/0.1.0" forHTTPHeaderField:@"User-Agent"];
+    [req setValue:@"Nibblez/" NIBBLEZ_VERSION forHTTPHeaderField:@"User-Agent"];
     for (NSString *k in headers) {
         [req setValue:headers[k] forHTTPHeaderField:k];
     }
@@ -58,7 +58,7 @@ static NSURLRequest *NBZPost(NSString *urlString, NSDictionary *headers, NSData 
 static NSURLRequest *NBZGet(NSString *urlString, NSDictionary *headers) {
     NSMutableURLRequest *req = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:urlString]];
     req.timeoutInterval = 20;
-    [req setValue:@"Nibblez/0.1.0" forHTTPHeaderField:@"User-Agent"];
+    [req setValue:@"Nibblez/" NIBBLEZ_VERSION forHTTPHeaderField:@"User-Agent"];
     for (NSString *k in headers) {
         [req setValue:headers[k] forHTTPHeaderField:k];
     }
