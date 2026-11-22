@@ -1,0 +1,12 @@
+Package: cc.igerman.nibblez
+Name: Nibblez
+Version: 0.1.0
+Architecture: iphoneos-arm
+Maintainer: iGerman <igerman@igerman.cc>
+Author: iGerman <igerman@igerman.cc>
+Depends: firmware (>= 15.0), mobilesubstrate (>= 0.9.5000)
+Conflicts: com.nibblez.tweak
+Replaces: com.nibblez.tweak
+Section: Tweaks
+Description: Scrobbling, blocking and better controls for YouTube Music
+Tags: compatible_min::ios15.0
