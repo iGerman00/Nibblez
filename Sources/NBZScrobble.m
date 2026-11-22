@@ -82,6 +82,7 @@ static BOOL NBZIsPermanentFailure(NSString *error) {
         self.currentTrack = nil;
         return;
     }
+    [self retryQueueIfDue];
     NSDictionary *info = [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo;
     NSTimeInterval now = [NSDate date].timeIntervalSince1970;
     NSTimeInterval delta = self.lastTick > 0 ? MIN(now - self.lastTick, 2.0) : 0;
@@ -224,6 +225,16 @@ static BOOL NBZIsPermanentFailure(NSString *error) {
     [q addObject:[track dictionaryRepresentation]];
     [[NSUserDefaults standardUserDefaults] setObject:q forKey:[@"nbz." stringByAppendingString:NBZKeyScrobbleQueue]];
     [[NSUserDefaults standardUserDefaults] synchronize];
+}
+
+// Retry the offline queue on a timer too: a request that fails while the
+// screen is locked would otherwise wait for the next successful scrobble.
+- (void)retryQueueIfDue {
+    static NSTimeInterval last;
+    NSTimeInterval now = [NSDate date].timeIntervalSince1970;
+    if (now - last < 30) return;
+    last = now;
+    [self flushQueue];
 }
 
 - (void)flushQueue {
