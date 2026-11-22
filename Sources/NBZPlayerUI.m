@@ -576,6 +576,19 @@ static void NBZPublishInfo(MPNowPlayingInfoCenter *center, NSDictionary *info) {
     ((void (*)(id, SEL, id))nbz_orig_setInfo)(center, NSSelectorFromString(@"setNowPlayingInfo:"), info);
 }
 
+// The app's remembered dict carries an elapsed time from when it was captured.
+// iOS extrapolates from that value at publish time, so replaying it as-is
+// rewinds the lock screen scrubber. Stamp the real position before replaying.
+static NSDictionary *NBZWithLivePosition(NSDictionary *info) {
+    NSTimeInterval position = [[NBZPlayerUI shared] playbackPosition];
+    if (position < 0 || !info) return info;
+    NSMutableDictionary *fresh = [info mutableCopy];
+    // The player's position only steps once a second, so it lags by half a
+    // second on average; split the difference.
+    fresh[MPNowPlayingInfoPropertyElapsedPlaybackTime] = @(position + 0.5);
+    return fresh;
+}
+
 static void NBZInstallArtworkHook(void) {
     NBZHook(@"MPNowPlayingInfoCenter", @"setNowPlayingInfo:", ^(MPNowPlayingInfoCenter *self, NSDictionary *info) {
         if (gNBZArt && info) {
@@ -600,7 +613,7 @@ static void NBZInstallArtworkHook(void) {
                                               requestHandler:^UIImage *(CGSize size) { return image; }];
     NSMutableDictionary *held = [gNBZLatestAppInfo mutableCopy];
     held[MPMediaItemPropertyArtwork] = gNBZArt;
-    NBZPublishInfo(center, held);
+    NBZPublishInfo(center, NBZWithLivePosition(held));
 
     NSInteger generation = ++gNBZArtGeneration;
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(kNBZFeedbackArtSeconds * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
@@ -608,7 +621,7 @@ static void NBZInstallArtworkHook(void) {
         NSDictionary *latest = gNBZLatestAppInfo;
         gNBZArt = nil;
         gNBZLatestAppInfo = nil;
-        if (latest) NBZPublishInfo(center, latest);
+        if (latest) NBZPublishInfo(center, NBZWithLivePosition(latest));
     });
 }
 
